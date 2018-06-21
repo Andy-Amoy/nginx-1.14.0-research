@@ -77,7 +77,9 @@ ngx_atomic_t         *ngx_stat_waiting = &ngx_stat_waiting0;
 #endif
 
 
-
+// event模块命令集
+// 回调函数，ngx_events_block
+// 用于解析events{}快的配置参数
 static ngx_command_t  ngx_events_commands[] = {
 
     { ngx_string("events"),
@@ -91,6 +93,7 @@ static ngx_command_t  ngx_events_commands[] = {
 };
 
 
+// event模块上下文
 static ngx_core_module_t  ngx_events_module_ctx = {
     ngx_string("events"),
     NULL,
@@ -98,6 +101,9 @@ static ngx_core_module_t  ngx_events_module_ctx = {
 };
 
 
+// event模块
+// 模块类型 NGX_CORE_MODULE
+// 核心模块，ngx_init_cycle初始化conf
 ngx_module_t  ngx_events_module = {
     NGX_MODULE_V1,
     &ngx_events_module_ctx,                /* module context */
@@ -114,11 +120,13 @@ ngx_module_t  ngx_events_module = {
 };
 
 
+// event核心模块名称
 static ngx_str_t  event_core_name = ngx_string("event_core");
 
-
+// 定义event核心模块的命令参数
 static ngx_command_t  ngx_event_core_commands[] = {
 
+    // 连接池的大小
     { ngx_string("worker_connections"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
       ngx_event_connections,
@@ -126,6 +134,7 @@ static ngx_command_t  ngx_event_core_commands[] = {
       0,
       NULL },
 
+    // 使用哪一个事件模块
     { ngx_string("use"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
       ngx_event_use,
@@ -133,13 +142,16 @@ static ngx_command_t  ngx_event_core_commands[] = {
       0,
       NULL },
 
+    // onAccept, 调用尽可能多地接收连接
+    //
     { ngx_string("multi_accept"),
       NGX_EVENT_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      ngx_conf_set_flag_slot,                       /* 预设配置项解析方法 */
       0,
       offsetof(ngx_event_conf_t, multi_accept),
       NULL },
 
+    // 负载均衡锁
     { ngx_string("accept_mutex"),
       NGX_EVENT_CONF|NGX_CONF_FLAG,
       ngx_conf_set_flag_slot,
@@ -147,6 +159,7 @@ static ngx_command_t  ngx_event_core_commands[] = {
       offsetof(ngx_event_conf_t, accept_mutex),
       NULL },
 
+    // 启用负载均衡锁，延迟ms后试图处理新连接事件
     { ngx_string("accept_mutex_delay"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
       ngx_conf_set_msec_slot,
@@ -154,6 +167,7 @@ static ngx_command_t  ngx_event_core_commands[] = {
       offsetof(ngx_event_conf_t, accept_mutex_delay),
       NULL },
 
+    // 指定ip打印debug日志
     { ngx_string("debug_connection"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
       ngx_event_debug_connection,
@@ -165,15 +179,22 @@ static ngx_command_t  ngx_event_core_commands[] = {
 };
 
 
+// event核心模块上下文
+// 仅实现create_conf创建配置文件和init_conf初始化配置文件
 static ngx_event_module_t  ngx_event_core_module_ctx = {
     &event_core_name,
     ngx_event_core_create_conf,            /* create configuration */
     ngx_event_core_init_conf,              /* init configuration */
 
-    { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL }
+    { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL }  /* ngx_event_actions_t 10个方法 */
 };
 
 
+// event核心模块
+// 创建连接池// 决定使用哪种事件驱动机制
+// ngx_event_module_init，模块初始化
+// ngx_event_process_init，进程初始化
+// NGX_EVENT_MODULE
 ngx_module_t  ngx_event_core_module = {
     NGX_MODULE_V1,
     &ngx_event_core_module_ctx,            /* module context */
@@ -411,6 +432,7 @@ ngx_handle_write_event(ngx_event_t *wev, size_t lowat)
 }
 
 
+// ngx_events_module init_conf
 static char *
 ngx_event_init_conf(ngx_cycle_t *cycle, void *conf)
 {
@@ -423,7 +445,7 @@ ngx_event_init_conf(ngx_cycle_t *cycle, void *conf)
     return NGX_CONF_OK;
 }
 
-
+// ngx_event_core_commands  init module
 static ngx_int_t
 ngx_event_module_init(ngx_cycle_t *cycle)
 {
@@ -435,6 +457,7 @@ ngx_event_module_init(ngx_cycle_t *cycle)
     ngx_core_conf_t     *ccf;
     ngx_event_conf_t    *ecf;
 
+    // 获取配置信息
     cf = ngx_get_conf(cycle->conf_ctx, ngx_events_module);
     ecf = (*cf)[ngx_event_core_module.ctx_index];
 
@@ -452,6 +475,7 @@ ngx_event_module_init(ngx_cycle_t *cycle)
     ngx_int_t      limit;
     struct rlimit  rlmt;
 
+    // getrlimit
     if (getrlimit(RLIMIT_NOFILE, &rlmt) == -1) {
         ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
                       "getrlimit(RLIMIT_NOFILE) failed, ignored");
@@ -487,6 +511,7 @@ ngx_event_module_init(ngx_cycle_t *cycle)
 
     cl = 128;
 
+    // 共享内存
     size = cl            /* ngx_accept_mutex */
            + cl          /* ngx_connection_counter */
            + cl;         /* ngx_temp_number */
@@ -516,6 +541,8 @@ ngx_event_module_init(ngx_cycle_t *cycle)
     ngx_accept_mutex_ptr = (ngx_atomic_t *) shared;
     ngx_accept_mutex.spin = (ngx_uint_t) -1;
 
+    // 互斥mutex  文件
+    // 惊群效应，负载均衡
     if (ngx_shmtx_create(&ngx_accept_mutex, (ngx_shmtx_sh_t *) shared,
                          cycle->lock_file.data)
         != NGX_OK)
@@ -568,6 +595,12 @@ ngx_timer_signal_handler(int signo)
 #endif
 
 
+// ngx_event_core_commands  init process
+// 模块启动过程中主要工作
+// 1. 负载均衡锁
+// 2. 红黑树定时器
+// 3. use ngx_event_actions_t init 方法
+// 4. 连接池，读事件池，写事件池
 static ngx_int_t
 ngx_event_process_init(ngx_cycle_t *cycle)
 {
@@ -940,6 +973,7 @@ ngx_events_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         m = cf->cycle->modules[i]->ctx;
 
+        // ngx_event_module_t create_conf 创建配置文件
         if (m->create_conf) {
             (*ctx)[cf->cycle->modules[i]->ctx_index] =
                                                      m->create_conf(cf->cycle);
@@ -969,6 +1003,7 @@ ngx_events_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         m = cf->cycle->modules[i]->ctx;
 
+        // ngx_event_module_t init_conf 初始化配置文件
         if (m->init_conf) {
             rv = m->init_conf(cf->cycle,
                               (*ctx)[cf->cycle->modules[i]->ctx_index]);
@@ -1175,6 +1210,7 @@ ngx_event_debug_connection(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 }
 
 
+// ngx_event_core_module create_conf
 static void *
 ngx_event_core_create_conf(ngx_cycle_t *cycle)
 {
@@ -1185,6 +1221,7 @@ ngx_event_core_create_conf(ngx_cycle_t *cycle)
         return NULL;
     }
 
+    // 设置默认值 ngx_event_conf_t
     ecf->connections = NGX_CONF_UNSET_UINT;
     ecf->use = NGX_CONF_UNSET_UINT;
     ecf->multi_accept = NGX_CONF_UNSET;
@@ -1206,6 +1243,7 @@ ngx_event_core_create_conf(ngx_cycle_t *cycle)
 }
 
 
+// ngx_event_core_module init_conf
 static char *
 ngx_event_core_init_conf(ngx_cycle_t *cycle, void *conf)
 {
@@ -1254,6 +1292,7 @@ ngx_event_core_init_conf(ngx_cycle_t *cycle, void *conf)
 
 #endif
 
+    // 选择io多路复用方式
     if (module == NULL) {
         for (i = 0; cycle->modules[i]; i++) {
 
@@ -1278,6 +1317,7 @@ ngx_event_core_init_conf(ngx_cycle_t *cycle, void *conf)
         return NGX_CONF_ERROR;
     }
 
+    // 存储使用的io多路复用模型性瘾
     ngx_conf_init_uint_value(ecf->connections, DEFAULT_CONNECTIONS);
     cycle->connection_n = ecf->connections;
 

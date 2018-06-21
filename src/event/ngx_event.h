@@ -174,6 +174,7 @@ struct ngx_event_aio_s {
 #endif
 
 
+// 必实现的10个方法
 typedef struct {
     ngx_int_t  (*add)(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags);
     ngx_int_t  (*del)(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags);
@@ -437,16 +438,17 @@ extern ngx_os_io_t  ngx_io;
 #define NGX_EVENT_CONF        0x02000000
 
 
+// 事件模块 存储配置项参数
 typedef struct {
-    ngx_uint_t    connections;
-    ngx_uint_t    use;
+    ngx_uint_t    connections;      // worker_connections
+    ngx_uint_t    use;              // ctx_index
 
-    ngx_flag_t    multi_accept;
-    ngx_flag_t    accept_mutex;
+    ngx_flag_t    multi_accept;     // multi_accept
+    ngx_flag_t    accept_mutex;     // accept_mutex
 
-    ngx_msec_t    accept_mutex_delay;
+    ngx_msec_t    accept_mutex_delay;   // accept_mutex_delay
 
-    u_char       *name;
+    u_char       *name;             // use ***
 
 #if (NGX_DEBUG)
     ngx_array_t   debug_connection;
